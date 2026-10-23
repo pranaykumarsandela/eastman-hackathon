@@ -6,6 +6,7 @@ import Footer from '../components/Footer';
 import FreeShippingProgressBar from '../components/FreeShippingProgressBar';
 import { useCart } from '../context/CartContext';
 import { useNotification } from '../context/NotificationContext';
+import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { formatINR } from '../utils/formatters';
 
@@ -13,12 +14,13 @@ export default function CheckoutPage() {
   const navigate = useNavigate();
   const { cartItems, appliedCoupon, clearCart } = useCart();
   const { addToast } = useNotification();
+  const { user } = useAuth();
 
   // Form Fields
   const [formData, setFormData] = useState({
-    customerName: '',
-    email: '',
-    phone: '',
+    customerName: user?.fullName || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
     address: '',
     city: '',
     state: '',
@@ -133,14 +135,14 @@ export default function CheckoutPage() {
       const res = await api.placeOrder(payload);
 
       if (res.success && res.data) {
-        addToast('Order confirmed and inventory locked in PostgreSQL!', 'success');
+        addToast('Order placed successfully! Thank you for shopping with SmartCart.', 'success');
         clearCart();
         navigate(`/order-confirmation/${res.data.orderNumber}`, {
           state: { order: res.data }
         });
       }
     } catch (err) {
-      addToast(err.message || 'Failed to place order. Transaction rolled back.', 'error');
+      addToast(err.message || 'Failed to place order. Please try again.', 'error');
       // Re-fetch preview to update stock if someone else bought items
       fetchPreview();
     } finally {

@@ -1,5 +1,17 @@
 const { z } = require('zod');
 
+const registerSchema = z.object({
+  fullName: z.string().min(2, 'Full name must be at least 2 characters').max(150),
+  email: z.string().email('Please enter a valid email address').max(255),
+  password: z.string().min(6, 'Password must be at least 6 characters').max(100),
+  phone: z.string().optional().nullable()
+});
+
+const loginSchema = z.object({
+  email: z.string().email('Please enter a valid email address'),
+  password: z.string().min(1, 'Password cannot be empty')
+});
+
 const couponValidateSchema = z.object({
   code: z.string().min(1, 'Coupon code cannot be empty').max(50),
   subtotal: z.number().min(0, 'Subtotal must be non-negative')
@@ -39,9 +51,33 @@ const orderLookupSchema = z.object({
   contact: z.string().min(3, 'Email or Phone is required for order verification')
 });
 
+const productCreateSchema = z.object({
+  name: z.string().min(2, 'Product name must be at least 2 characters').max(255),
+  description: z.string().min(5, 'Description must be at least 5 characters'),
+  price: z.number().min(0, 'Price must be non-negative'),
+  category: z.string().min(2, 'Category is required'),
+  imageUrl: z.string().url('Image URL must be a valid URL').optional().or(z.literal('')),
+  stockQuantity: z.number().int().min(0, 'Stock must be a non-negative integer'),
+  isActive: z.boolean().default(true)
+});
+
+const productUpdateSchema = z.object({
+  name: z.string().min(2).max(255).optional(),
+  description: z.string().min(5).optional(),
+  price: z.number().min(0).optional(),
+  category: z.string().min(2).optional(),
+  imageUrl: z.string().optional(),
+  stockQuantity: z.number().int().min(0).optional(),
+  isActive: z.boolean().optional()
+});
+
 module.exports = {
+  registerSchema,
+  loginSchema,
   couponValidateSchema,
   checkoutPreviewSchema,
   createOrderSchema,
-  orderLookupSchema
+  orderLookupSchema,
+  productCreateSchema,
+  productUpdateSchema
 };

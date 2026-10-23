@@ -7,6 +7,8 @@ const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 
 // Route handlers
 const healthRoutes = require('./routes/health');
+const authRoutes = require('./routes/auth');
+const adminRoutes = require('./routes/admin');
 const productRoutes = require('./routes/products');
 const couponRoutes = require('./routes/coupons');
 const checkoutRoutes = require('./routes/checkout');
@@ -35,7 +37,7 @@ app.use(cors({
     return callback(null, true); // Permissive in dev/hackathon demo
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
@@ -48,6 +50,8 @@ app.use('/api', apiLimiter);
 
 // Mount API routes
 app.use('/api/health', healthRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/checkout', checkoutRoutes);
@@ -57,10 +61,20 @@ app.use('/api/orders', orderRoutes);
 app.get('/', (req, res) => {
   res.json({
     name: 'SmartCart API',
-    version: '1.0.0',
+    version: '2.0.0',
     status: 'online',
     endpoints: {
       health: '/api/health',
+      auth: {
+        register: 'POST /api/auth/register',
+        login: 'POST /api/auth/login',
+        me: 'GET /api/auth/me'
+      },
+      admin: {
+        metrics: 'GET /api/admin/metrics',
+        products: 'GET/POST /api/admin/products',
+        orders: 'GET /api/admin/orders'
+      },
       products: '/api/products',
       coupons: '/api/coupons',
       checkoutPreview: '/api/checkout/preview',

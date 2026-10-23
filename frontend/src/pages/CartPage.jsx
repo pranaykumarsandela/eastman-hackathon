@@ -289,7 +289,7 @@ export default function CartPage() {
 
               <div className="pt-2 text-center">
                 <span className="text-[11px] text-slate-400 flex items-center justify-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> PostgreSQL ACID Guaranteed Checkout
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> 100% Safe &amp; Secure Checkout Guarantee
                 </span>
               </div>
             </div>

@@ -24,14 +24,14 @@ export default function OrderConfirmationPage() {
           </div>
 
           <span className="text-xs font-bold uppercase tracking-widest text-emerald-700 bg-emerald-100/80 px-3 py-1 rounded-full">
-            Order Confirmed & Inventory Locked
+            Order Confirmed & Verified
           </span>
 
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900 mt-3 tracking-tight">
             Thank you for your order!
           </h1>
           <p className="mt-1 text-sm text-slate-600 max-w-md mx-auto">
-            Your transaction has been securely committed to PostgreSQL. An order confirmation has been logged.
+            Your transaction has been securely processed and is being prepared for dispatch.
           </p>
 
           {/* Order Reference Badge */}

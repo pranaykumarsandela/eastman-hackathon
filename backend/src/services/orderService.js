@@ -138,7 +138,8 @@ const placeOrder = async (orderData) => {
     paymentMethod = 'COD',
     items,
     couponCode = null,
-    idempotencyKey = null
+    idempotencyKey = null,
+    userId = null
   } = orderData;
 
   if (!items || !Array.isArray(items) || items.length === 0) {
@@ -225,23 +226,23 @@ const placeOrder = async (orderData) => {
     const randomSuffix = Math.random().toString(36).substring(2, 7).toUpperCase();
     const orderNumber = `SC-${datePrefix}-${randomSuffix}`;
 
-    // 5. Insert order record
+    // 5. Insert order record with user_id
     const insertOrderSql = `
       INSERT INTO orders (
         order_number, customer_name, email, phone, address, city, state, postal_code,
         subtotal, discount_amount, shipping_fee, tax_amount, total_amount,
-        coupon_id, payment_method, payment_status, order_status, idempotency_key
+        coupon_id, payment_method, payment_status, order_status, idempotency_key, user_id
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8,
         $9, $10, $11, $12, $13,
-        $14, $15, $16, $17, $18
+        $14, $15, $16, $17, $18, $19
       ) RETURNING id, order_number, total_amount, order_status, created_at
     `;
 
     const orderValues = [
       orderNumber, customerName, email, phone, address, city, state, postalCode,
       totals.subtotal, totals.discountAmount, totals.shippingFee, totals.taxAmount, totals.totalAmount,
-      totals.couponId, paymentMethod, paymentMethod === 'SIMULATED_ONLINE' ? 'PAID' : 'PENDING', 'CONFIRMED', idempotencyKey
+      totals.couponId, paymentMethod, paymentMethod === 'SIMULATED_ONLINE' ? 'PAID' : 'PENDING', 'CONFIRMED', idempotencyKey, userId
     ];
 
     const orderRes = await client.query(insertOrderSql, orderValues);
@@ -363,9 +364,45 @@ const getOrderByLookup = async (orderNumber, verificationContact) => {
   };
 };
 
+/**
+ * Fetches all orders belonging to a specific customer account
+ */
+const getCustomerOrders = async (userId) => {
+  const ordersRes = await query(
+    `SELECT o.*, c.code as coupon_code,
+       (SELECT COUNT(*) FROM order_items WHERE order_id = o.id) as item_count
+     FROM orders o
+     LEFT JOIN coupons c ON o.coupon_id = c.id
+     WHERE o.user_id = $1
+     ORDER BY o.created_at DESC`,
+    [userId]
+  );
+
+  return ordersRes.rows.map(order => ({
+    id: order.id,
+    orderNumber: order.order_number,
+    customerName: order.customer_name,
+    email: order.email,
+    phone: order.phone,
+    address: `${order.address}, ${order.city}, ${order.state} - ${order.postal_code}`,
+    subtotal: parseFloat(order.subtotal),
+    discountAmount: parseFloat(order.discount_amount),
+    shippingFee: parseFloat(order.shipping_fee),
+    taxAmount: parseFloat(order.tax_amount),
+    totalAmount: parseFloat(order.total_amount),
+    couponCode: order.coupon_code,
+    paymentMethod: order.payment_method,
+    paymentStatus: order.payment_status,
+    orderStatus: order.order_status,
+    itemCount: parseInt(order.item_count, 10),
+    createdAt: order.created_at
+  }));
+};
+
 module.exports = {
   calculateOrderTotals,
   previewCheckout,
   placeOrder,
-  getOrderByLookup
+  getOrderByLookup,
+  getCustomerOrders
 };

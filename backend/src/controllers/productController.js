@@ -135,7 +135,7 @@ const getProductById = async (req, res, next) => {
     }
 
     const result = await query(
-      'SELECT * FROM products WHERE id = $1 AND is_active = TRUE',
+      'SELECT * FROM products WHERE id = $1',
       [productId]
     );
 
@@ -152,12 +152,14 @@ const getProductById = async (req, res, next) => {
       data: {
         id: p.id,
         name: p.name,
+        title: p.name,
         description: p.description,
         price: parseFloat(p.price),
         category: p.category,
         imageUrl: p.image_url,
         stockQuantity: p.stock_quantity,
         rating: parseFloat(p.rating),
+        isActive: p.is_active,
         inStock: p.stock_quantity > 0,
         createdAt: p.created_at
       }

@@ -1,4 +1,4 @@
-const { placeOrder, getOrderByLookup } = require('../services/orderService');
+const { placeOrder, getOrderByLookup, getCustomerOrders } = require('../services/orderService');
 
 /**
  * POST /api/orders
@@ -6,7 +6,12 @@ const { placeOrder, getOrderByLookup } = require('../services/orderService');
  */
 const createOrder = async (req, res, next) => {
   try {
-    const result = await placeOrder(req.body);
+    const orderData = {
+      ...req.body,
+      userId: req.user ? req.user.id : null
+    };
+
+    const result = await placeOrder(orderData);
 
     if (result.isDuplicate) {
       return res.status(200).json({
@@ -21,6 +26,31 @@ const createOrder = async (req, res, next) => {
       success: true,
       message: 'Order placed successfully!',
       data: result.order
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /api/orders/my-orders
+ * Returns order history for the authenticated customer
+ */
+const getMyOrders = async (req, res, next) => {
+  try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        success: false,
+        message: 'Please log in to view your order history.',
+        code: 'UNAUTHORIZED'
+      });
+    }
+
+    const orders = await getCustomerOrders(req.user.id);
+
+    res.json({
+      success: true,
+      data: orders
     });
   } catch (error) {
     next(error);
@@ -96,6 +126,7 @@ const getOrderByNumber = async (req, res, next) => {
 
 module.exports = {
   createOrder,
+  getMyOrders,
   lookupOrder,
   getOrderByNumber
 };
