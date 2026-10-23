@@ -52,24 +52,39 @@ const orderLookupSchema = z.object({
 });
 
 const productCreateSchema = z.object({
-  name: z.string().min(2, 'Product name must be at least 2 characters').max(255),
-  description: z.string().min(5, 'Description must be at least 5 characters'),
+  name: z.string().min(2, 'Product name must be at least 2 characters').max(255).optional(),
+  title: z.string().min(2, 'Product title must be at least 2 characters').max(255).optional(),
+  slug: z.string().optional(),
+  description: z.string().min(2, 'Description must be at least 2 characters').optional().or(z.literal('')),
   price: z.number().min(0, 'Price must be non-negative'),
   category: z.string().min(2, 'Category is required'),
   imageUrl: z.string().url('Image URL must be a valid URL').optional().or(z.literal('')),
   stockQuantity: z.number().int().min(0, 'Stock must be a non-negative integer'),
   isActive: z.boolean().default(true)
-});
+}).refine(data => data.name || data.title, {
+  message: 'Product name or title is required',
+  path: ['title']
+}).transform(data => ({
+  ...data,
+  name: (data.name || data.title || '').trim(),
+  title: (data.title || data.name || '').trim()
+}));
 
 const productUpdateSchema = z.object({
   name: z.string().min(2).max(255).optional(),
-  description: z.string().min(5).optional(),
+  title: z.string().min(2).max(255).optional(),
+  slug: z.string().optional(),
+  description: z.string().optional(),
   price: z.number().min(0).optional(),
   category: z.string().min(2).optional(),
   imageUrl: z.string().optional(),
   stockQuantity: z.number().int().min(0).optional(),
   isActive: z.boolean().optional()
-});
+}).transform(data => ({
+  ...data,
+  name: data.name ? data.name.trim() : (data.title ? data.title.trim() : undefined),
+  title: data.title ? data.title.trim() : (data.name ? data.name.trim() : undefined)
+}));
 
 module.exports = {
   registerSchema,

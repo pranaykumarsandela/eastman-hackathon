@@ -56,7 +56,7 @@ export default function AdminProductFormPage() {
         if (res.success && res.data) {
           const p = res.data;
           setFormData({
-            title: p.title || '',
+            title: p.title || p.name || '',
             slug: p.slug || '',
             description: p.description || '',
             price: p.price !== undefined ? p.price.toString() : '',
@@ -138,6 +138,7 @@ export default function AdminProductFormPage() {
 
     try {
       const payload = {
+        name: formData.title.trim(),
         title: formData.title.trim(),
         slug: formData.slug.trim() || slugify(formData.title),
         description: formData.description.trim(),
