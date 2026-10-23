@@ -1,14 +1,1 @@
-{
-  "name": "smartcart",
-  "version": "1.0.0",
-  "private": true,
-  "scripts": {
-    "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
-    "db:migrate": "npm run db:migrate --prefix server",
-    "db:seed": "npm run db:seed --prefix server",
-    "build": "npm run build --prefix client"
-  },
-  "devDependencies": {
-    "concurrently": "^9.2.5"
-  }
-}
+{"name":"smartcart","private":true,"scripts":{"dev":"concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"","db:migrate":"npm run db:migrate --prefix server","db:seed":"npm run db:seed --prefix server","build":"npm run build --prefix client","test":"npm run test --prefix server"},"devDependencies":{"concurrently":"^9.1.2"}}
