@@ -8,11 +8,22 @@ import {
   Layers,
   Image as ImageIcon,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  AlertTriangle,
+  Sparkles
 } from 'lucide-react';
 import AdminNavbar from '../../components/AdminNavbar';
 import { api } from '../../services/api';
 import { useNotification } from '../../context/NotificationContext';
+
+const IMAGE_PRESETS = [
+  { label: '🪑 Table / Desk', url: 'https://images.unsplash.com/photo-1530018607912-eff2daa1bac4?w=600&auto=format&fit=crop&q=80' },
+  { label: '🎧 Headphones', url: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&auto=format&fit=crop&q=80' },
+  { label: '💻 Laptop', url: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=600&auto=format&fit=crop&q=80' },
+  { label: '📱 Phone', url: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&auto=format&fit=crop&q=80' },
+  { label: '💺 Chair', url: 'https://images.unsplash.com/photo-1592078615290-033ee584e267?w=600&auto=format&fit=crop&q=80' },
+  { label: '☕ Mug / Kettle', url: 'https://images.unsplash.com/photo-1517256064527-09c73fc73e38?w=600&auto=format&fit=crop&q=80' }
+];
 
 export default function AdminProductFormPage() {
   const { id } = useParams();
@@ -35,6 +46,7 @@ export default function AdminProductFormPage() {
   const [fetching, setFetching] = useState(isEditMode);
   const [categories, setCategories] = useState(['Electronics', 'Audio', 'Wearables', 'Accessories', 'Gaming']);
   const [error, setError] = useState('');
+  const [imageLoadError, setImageLoadError] = useState(false);
 
   // Auto slug generation helper
   const slugify = (text) =>
@@ -104,8 +116,29 @@ export default function AdminProductFormPage() {
         }
         return updated;
       });
+      if (name === 'imageUrl') {
+        setImageLoadError(false);
+      }
     }
     if (error) setError('');
+  };
+
+  const getSmartFallbackImage = (title, category) => {
+    const t = (title || '').toLowerCase();
+    const c = (category || '').toLowerCase();
+    if (t.includes('table') || t.includes('desk') || c.includes('furniture')) {
+      return 'https://images.unsplash.com/photo-1530018607912-eff2daa1bac4?w=600&auto=format&fit=crop&q=80';
+    }
+    if (t.includes('headphone') || t.includes('earphone') || t.includes('audio') || c.includes('audio')) {
+      return 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&auto=format&fit=crop&q=80';
+    }
+    if (t.includes('laptop') || t.includes('computer')) {
+      return 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=600&auto=format&fit=crop&q=80';
+    }
+    if (t.includes('chair')) {
+      return 'https://images.unsplash.com/photo-1592078615290-033ee584e267?w=600&auto=format&fit=crop&q=80';
+    }
+    return 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&auto=format&fit=crop&q=80';
   };
 
   const handleSubmit = async (e) => {
@@ -137,6 +170,8 @@ export default function AdminProductFormPage() {
     setError('');
 
     try {
+      const chosenImage = formData.imageUrl.trim() || getSmartFallbackImage(formData.title, formData.category);
+
       const payload = {
         name: formData.title.trim(),
         title: formData.title.trim(),
@@ -145,7 +180,7 @@ export default function AdminProductFormPage() {
         price: priceNum,
         stockQuantity: stockNum,
         category: formData.category.trim(),
-        imageUrl: formData.imageUrl.trim() || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600',
+        imageUrl: chosenImage,
         isActive: formData.isActive
       };
 
@@ -323,23 +358,73 @@ export default function AdminProductFormPage() {
                       value={formData.imageUrl}
                       onChange={handleChange}
                       placeholder="https://images.unsplash.com/..."
-                      className="w-full px-3.5 py-2.5 bg-slate-900/90 border border-slate-700 rounded-xl text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-brand-500 transition"
+                      className={`w-full px-3.5 py-2.5 bg-slate-900/90 border rounded-xl text-xs text-white placeholder:text-slate-500 focus:outline-none transition ${
+                        imageLoadError
+                          ? 'border-amber-500/80 focus:border-amber-500'
+                          : 'border-slate-700 focus:border-brand-500'
+                      }`}
                     />
                   </div>
 
-                  <div className="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-700 overflow-hidden shrink-0 flex items-center justify-center">
+                  <div className={`w-16 h-16 rounded-2xl bg-slate-900 border overflow-hidden shrink-0 flex items-center justify-center transition ${
+                    imageLoadError ? 'border-amber-500/60 bg-amber-500/10' : 'border-slate-700'
+                  }`}>
                     {formData.imageUrl ? (
-                      <img
-                        src={formData.imageUrl}
-                        alt="Preview"
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.target.src = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=100';
-                        }}
-                      />
+                      imageLoadError ? (
+                        <div className="flex flex-col items-center justify-center p-1 text-center" title="Image failed to load">
+                          <AlertTriangle className="w-5 h-5 text-amber-400" />
+                          <span className="text-[8px] font-bold text-amber-300 uppercase mt-0.5">Failed</span>
+                        </div>
+                      ) : (
+                        <img
+                          src={formData.imageUrl}
+                          alt="Preview"
+                          className="w-full h-full object-cover"
+                          onError={() => setImageLoadError(true)}
+                        />
+                      )
                     ) : (
                       <ImageIcon className="w-6 h-6 text-slate-600" />
                     )}
+                  </div>
+                </div>
+
+                {/* Error warning if user pastes an HTML page or dead link */}
+                {imageLoadError && (
+                  <div className="flex items-start gap-2 mt-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs">
+                    <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
+                    <div>
+                      <span className="font-bold">Image preview unavailable:</span> The URL entered is not a direct photo file (it might be a webpage link like Magnific/Pinterest). Image URLs must point directly to a picture file (.jpg, .png, Unsplash).
+                      <div className="mt-1 text-[11px] text-amber-200">
+                        👉 Click one of the curated high-res photo presets below to instantly use it!
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Quick-Fill Curated Image Presets */}
+                <div className="mt-3">
+                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 mb-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Curated Photo Presets (Click to Auto-Fill):
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {IMAGE_PRESETS.map((preset) => (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        onClick={() => {
+                          setFormData((prev) => ({ ...prev, imageUrl: preset.url }));
+                          setImageLoadError(false);
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-medium border transition ${
+                          formData.imageUrl === preset.url
+                            ? 'bg-brand-600 text-white border-brand-500 shadow-sm'
+                            : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700/80'
+                        }`}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
               </div>
