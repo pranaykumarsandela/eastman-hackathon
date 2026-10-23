@@ -1,10 +1,18 @@
 import React, { useState } from 'react';
-import { X, Star, ShoppingCart, Check, ShieldAlert, Truck, RotateCcw } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { X, Star, ShoppingCart, Check, ShieldAlert, Truck, RotateCcw, LogIn } from 'lucide-react';
 import { formatINR } from '../utils/formatters';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
+import { useNotification } from '../context/NotificationContext';
 
 export default function ProductModal({ product, onClose }) {
   const { addToCart, cartItems } = useCart();
+  const { isAuthenticated } = useAuth();
+  const { addToast } = useNotification();
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const [quantity, setQuantity] = useState(1);
   const [imageError, setImageError] = useState(false);
   const [isAdded, setIsAdded] = useState(false);
@@ -17,13 +25,22 @@ export default function ProductModal({ product, onClose }) {
   const isOutOfStock = product.stockQuantity <= 0;
 
   const handleAdd = () => {
-    if (quantity > remainingStock) return;
-    addToCart(product, quantity);
-    setIsAdded(true);
-    setTimeout(() => {
-      setIsAdded(false);
+    if (!isAuthenticated) {
+      addToast('Please sign in to add items to your cart.', 'warning');
+      navigate('/login', { state: { from: location } });
       onClose();
-    }, 900);
+      return;
+    }
+
+    if (quantity > remainingStock) return;
+    const ok = addToCart(product, quantity);
+    if (ok) {
+      setIsAdded(true);
+      setTimeout(() => {
+        setIsAdded(false);
+        onClose();
+      }, 900);
+    }
   };
 
   const fallbackImage = `https://placehold.co/800x600/e2e8f0/475569?text=${encodeURIComponent(product.category || 'Product')}`;
@@ -149,6 +166,10 @@ export default function ProductModal({ product, onClose }) {
                     'Out of Stock'
                   ) : remainingStock <= 0 ? (
                     'All In Cart'
+                  ) : !isAuthenticated ? (
+                    <>
+                      <LogIn className="w-4 h-4" /> Sign In to Buy • {formatINR(product.price * quantity)}
+                    </>
                   ) : (
                     <>
                       <ShoppingCart className="w-5 h-5" /> Add to Cart • {formatINR(product.price * quantity)}

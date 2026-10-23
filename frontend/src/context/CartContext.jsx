@@ -1,70 +1,101 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { api } from '../services/api';
 import { useNotification } from './NotificationContext';
+import { useAuth } from './AuthContext';
 
 const CartContext = createContext(null);
-const CART_STORAGE_KEY = 'smartcart_items_v1';
-const COUPON_STORAGE_KEY = 'smartcart_coupon_v1';
 
 export function CartProvider({ children }) {
   const { addToast } = useNotification();
+  const { user, isAuthenticated } = useAuth();
 
-  // Load initial cart from localStorage
-  const [cartItems, setCartItems] = useState(() => {
-    try {
-      const saved = localStorage.getItem(CART_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  // Applied coupon state
-  const [appliedCoupon, setAppliedCoupon] = useState(() => {
-    try {
-      const saved = localStorage.getItem(COUPON_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
-
+  // State
+  const [cartItems, setCartItems] = useState([]);
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [smartRecommendation, setSmartRecommendation] = useState(null);
   const [isRevalidating, setIsRevalidating] = useState(false);
   const [cartIssues, setCartIssues] = useState([]);
 
-  // Save cart to localStorage
+  // Clean up legacy global cart if present
   useEffect(() => {
     try {
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartItems));
+      localStorage.removeItem('smartcart_items_v1');
+      localStorage.removeItem('smartcart_coupon_v1');
+    } catch {}
+  }, []);
+
+  // Track which user's cart has been loaded from storage
+  const loadedUserIdRef = React.useRef(null);
+
+  // Sync cart with authenticated user
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) {
+      // User is logged out -> cart MUST show zero items
+      loadedUserIdRef.current = null;
+      setCartItems([]);
+      setAppliedCoupon(null);
+      setCouponDiscount(0);
+      setSmartRecommendation(null);
+      return;
+    }
+
+    // User is logged in -> load that specific user's cart
+    const userCartKey = `smartcart_cart_${user.id}`;
+    const userCouponKey = `smartcart_coupon_${user.id}`;
+
+    try {
+      const savedCart = localStorage.getItem(userCartKey);
+      setCartItems(savedCart ? JSON.parse(savedCart) : []);
+
+      const savedCoupon = localStorage.getItem(userCouponKey);
+      setAppliedCoupon(savedCoupon ? JSON.parse(savedCoupon) : null);
+    } catch (err) {
+      console.warn('Failed to load user cart:', err);
+      setCartItems([]);
+      setAppliedCoupon(null);
+    }
+
+    loadedUserIdRef.current = user.id;
+  }, [isAuthenticated, user?.id]);
+
+  // Persist cart to user-scoped localStorage (only after user's cart is loaded)
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id || loadedUserIdRef.current !== user.id) return;
+    const userCartKey = `smartcart_cart_${user.id}`;
+    try {
+      localStorage.setItem(userCartKey, JSON.stringify(cartItems));
     } catch (err) {
       console.error('Failed to save cart to localStorage', err);
     }
-  }, [cartItems]);
+  }, [cartItems, isAuthenticated, user?.id]);
 
-  // Save coupon to localStorage
+  // Persist coupon to user-scoped localStorage
   useEffect(() => {
+    if (!isAuthenticated || !user?.id) return;
+    const userCouponKey = `smartcart_coupon_${user.id}`;
     try {
       if (appliedCoupon) {
-        localStorage.setItem(COUPON_STORAGE_KEY, JSON.stringify(appliedCoupon));
+        localStorage.setItem(userCouponKey, JSON.stringify(appliedCoupon));
       } else {
-        localStorage.removeItem(COUPON_STORAGE_KEY);
+        localStorage.removeItem(userCouponKey);
       }
     } catch (err) {
       console.error('Failed to save coupon to localStorage', err);
     }
-  }, [appliedCoupon]);
+  }, [appliedCoupon, isAuthenticated, user?.id]);
 
   // Derived metrics
   const totalItemCount = useMemo(() => {
+    if (!isAuthenticated) return 0;
     return cartItems.reduce((acc, item) => acc + item.quantity, 0);
-  }, [cartItems]);
+  }, [cartItems, isAuthenticated]);
 
   const rawSubtotal = useMemo(() => {
+    if (!isAuthenticated) return 0;
     const total = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
     return Math.round(total * 100) / 100;
-  }, [cartItems]);
+  }, [cartItems, isAuthenticated]);
 
   // Fetch smart savings assistant recommendation when subtotal changes
   const fetchSavingsRecommendation = useCallback(async (subtotal) => {
@@ -98,7 +129,6 @@ export function CartProvider({ children }) {
       return;
     }
 
-    // Call validate endpoint
     api.validateCoupon(appliedCoupon.code, rawSubtotal)
       .then((res) => {
         if (res.success && res.data) {
@@ -112,24 +142,33 @@ export function CartProvider({ children }) {
       });
   }, [rawSubtotal, appliedCoupon?.code, addToast]);
 
-  // Add product to cart
+  // Add product to cart (Strictly requires authenticated user)
   const addToCart = useCallback((product, quantity = 1) => {
-    if (!product || !product.id) return;
+    if (!isAuthenticated || !user) {
+      addToast('Please sign in to add items to your cart.', 'warning');
+      return false;
+    }
+
+    if (!product || !product.id) return false;
 
     if (product.stockQuantity <= 0) {
-      addToast(`Sorry, "${product.name}" is currently out of stock.`, 'error');
-      return;
+      addToast(`Sorry, "${product.name || product.title}" is currently out of stock.`, 'error');
+      return false;
     }
+
+    let success = true;
 
     setCartItems((prevItems) => {
       const existingIndex = prevItems.findIndex((item) => item.id === product.id);
+      const prodName = product.name || product.title || 'Product';
 
       if (existingIndex > -1) {
         const currentQty = prevItems[existingIndex].quantity;
         const newQty = currentQty + quantity;
 
         if (newQty > product.stockQuantity) {
-          addToast(`Maximum stock available for "${product.name}" is ${product.stockQuantity}.`, 'warning');
+          addToast(`Maximum stock available for "${prodName}" is ${product.stockQuantity}.`, 'warning');
+          success = false;
           return prevItems;
         }
 
@@ -137,23 +176,24 @@ export function CartProvider({ children }) {
         updated[existingIndex] = {
           ...updated[existingIndex],
           quantity: newQty,
-          price: product.price, // update with current price
+          price: product.price,
           stockQuantity: product.stockQuantity
         };
-        addToast(`Updated "${product.name}" quantity to ${newQty}.`, 'success');
+        addToast(`Updated "${prodName}" quantity to ${newQty}.`, 'success');
         return updated;
       } else {
         if (quantity > product.stockQuantity) {
           addToast(`Cannot add ${quantity} units. Only ${product.stockQuantity} in stock.`, 'warning');
+          success = false;
           return prevItems;
         }
 
-        addToast(`Added "${product.name}" to cart.`, 'success');
+        addToast(`Added "${prodName}" to your cart.`, 'success');
         return [
           ...prevItems,
           {
             id: product.id,
-            name: product.name,
+            name: prodName,
             price: product.price,
             category: product.category,
             imageUrl: product.imageUrl,
@@ -163,7 +203,9 @@ export function CartProvider({ children }) {
         ];
       }
     });
-  }, [addToast]);
+
+    return success;
+  }, [isAuthenticated, user, addToast]);
 
   // Update item quantity
   const updateQuantity = useCallback((productId, newQuantity) => {
@@ -203,14 +245,21 @@ export function CartProvider({ children }) {
     setAppliedCoupon(null);
     setCouponDiscount(0);
     setCartIssues([]);
-    try {
-      localStorage.removeItem(CART_STORAGE_KEY);
-      localStorage.removeItem(COUPON_STORAGE_KEY);
-    } catch {}
-  }, []);
+    if (user?.id) {
+      try {
+        localStorage.removeItem(`smartcart_cart_${user.id}`);
+        localStorage.removeItem(`smartcart_coupon_${user.id}`);
+      } catch {}
+    }
+  }, [user?.id]);
 
-  // Apply a coupon manually or via recommendation
+  // Apply a coupon manually
   const applyCoupon = useCallback(async (code) => {
+    if (!isAuthenticated) {
+      addToast('Please sign in to apply coupons.', 'warning');
+      return false;
+    }
+
     if (!code || !code.trim()) {
       addToast('Please enter a coupon code.', 'warning');
       return false;
@@ -236,7 +285,7 @@ export function CartProvider({ children }) {
       addToast(err.message || 'Invalid or expired coupon.', 'error');
       return false;
     }
-  }, [rawSubtotal, addToast]);
+  }, [isAuthenticated, rawSubtotal, addToast]);
 
   // Remove applied coupon
   const removeCoupon = useCallback(() => {
@@ -247,7 +296,7 @@ export function CartProvider({ children }) {
 
   // Revalidate cart with backend
   const revalidateCart = useCallback(async () => {
-    if (cartItems.length === 0) return { isValid: true, issues: [] };
+    if (!isAuthenticated || cartItems.length === 0) return { isValid: true, issues: [] };
 
     setIsRevalidating(true);
     setCartIssues([]);
@@ -263,7 +312,6 @@ export function CartProvider({ children }) {
       if (res.success && res.data) {
         const preview = res.data;
 
-        // Update any price or stock differences
         setCartItems((prev) => {
           return prev.map((localItem) => {
             const verified = preview.items.find((v) => v.productId === localItem.id);
@@ -303,7 +351,7 @@ export function CartProvider({ children }) {
     } finally {
       setIsRevalidating(false);
     }
-  }, [cartItems, appliedCoupon, addToast]);
+  }, [isAuthenticated, cartItems, appliedCoupon, addToast]);
 
   return (
     <CartContext.Provider

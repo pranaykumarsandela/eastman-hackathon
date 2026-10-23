@@ -8,6 +8,7 @@ import FreeShippingProgressBar from '../components/FreeShippingProgressBar';
 import SmartSavingsBanner from '../components/SmartSavingsBanner';
 import CouponModal from '../components/CouponModal';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import { formatINR } from '../utils/formatters';
 
 export default function CartPage() {
@@ -24,10 +25,47 @@ export default function CartPage() {
     removeCoupon,
     isRevalidating
   } = useCart();
+  const { isAuthenticated } = useAuth();
 
   const navigate = useNavigate();
   const [couponInput, setCouponInput] = useState('');
   const [isCouponModalOpen, setIsCouponModalOpen] = useState(false);
+
+  // If user is not logged in, prompt to sign in
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex flex-col bg-slate-50">
+        <Navbar />
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 flex-1 w-full flex items-center justify-center">
+          <div className="max-w-md w-full bg-white rounded-3xl p-8 border border-slate-200/80 shadow-xl text-center">
+            <div className="w-14 h-14 bg-brand-50 text-brand-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <ShoppingBag className="w-7 h-7" />
+            </div>
+            <h2 className="text-xl font-bold text-slate-900">Sign in to View Your Cart</h2>
+            <p className="mt-2 text-xs text-slate-500 leading-relaxed">
+              Please sign in to access your shopping cart, review items, apply coupons, and proceed to checkout.
+            </p>
+            <div className="mt-6 flex flex-col sm:flex-row gap-3">
+              <Link
+                to="/login"
+                state={{ from: { pathname: '/cart' } }}
+                className="flex-1 py-2.5 px-4 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-md transition text-center"
+              >
+                Sign In
+              </Link>
+              <Link
+                to="/"
+                className="flex-1 py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition text-center"
+              >
+                Explore Catalog
+              </Link>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   // Authoritative preliminary client estimates (backend re-verifies on checkout)
   const taxableAmount = Math.max(0, subtotal - couponDiscount);

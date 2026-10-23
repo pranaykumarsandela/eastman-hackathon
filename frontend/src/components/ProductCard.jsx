@@ -1,10 +1,18 @@
 import React, { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ShoppingCart, Star, Eye, Check, AlertCircle } from 'lucide-react';
 import { formatINR } from '../utils/formatters';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
+import { useNotification } from '../context/NotificationContext';
 
 export default function ProductCard({ product, onQuickView }) {
   const { addToCart, cartItems } = useCart();
+  const { isAuthenticated } = useAuth();
+  const { addToast } = useNotification();
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const [imageError, setImageError] = useState(false);
   const [isAdded, setIsAdded] = useState(false);
 
@@ -16,10 +24,19 @@ export default function ProductCard({ product, onQuickView }) {
 
   const handleAdd = (e) => {
     e.stopPropagation();
+
+    if (!isAuthenticated) {
+      addToast('Please sign in to add items to your cart.', 'warning');
+      navigate('/login', { state: { from: location } });
+      return;
+    }
+
     if (isOutOfStock || isMaxStockReached) return;
-    addToCart(product, 1);
-    setIsAdded(true);
-    setTimeout(() => setIsAdded(false), 1200);
+    const ok = addToCart(product, 1);
+    if (ok) {
+      setIsAdded(true);
+      setTimeout(() => setIsAdded(false), 1200);
+    }
   };
 
   const fallbackImage = `https://placehold.co/600x400/e2e8f0/475569?text=${encodeURIComponent(product.category || 'Product')}`;

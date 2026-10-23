@@ -36,12 +36,17 @@ export default function CheckoutPage() {
   // Generate unique idempotency key per checkout attempt
   const [idempotencyKey] = useState(() => `IDEMP-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`);
 
-  // Redirect to cart if empty
+  // Redirect if not logged in or cart empty
   useEffect(() => {
+    if (!isAuthenticated) {
+      addToast('Please sign in to proceed to checkout.', 'warning');
+      navigate('/login', { state: { from: { pathname: '/checkout' } }, replace: true });
+      return;
+    }
     if (cartItems.length === 0) {
       navigate('/cart');
     }
-  }, [cartItems, navigate]);
+  }, [isAuthenticated, cartItems, navigate, addToast]);
 
   // Fetch live backend calculation preview
   const fetchPreview = async () => {
