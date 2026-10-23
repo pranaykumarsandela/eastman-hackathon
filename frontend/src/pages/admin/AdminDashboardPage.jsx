@@ -18,10 +18,19 @@ import AdminNavbar from '../../components/AdminNavbar';
 import { api } from '../../services/api';
 import { formatINR } from '../../utils/formatters';
 
+const STATUS_STYLES = {
+  CONFIRMED: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
+  PROCESSING: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
+  SHIPPED: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
+  DELIVERED: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+  CANCELLED: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
+};
+
 export default function AdminDashboardPage() {
   const [metrics, setMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   const fetchMetrics = async () => {
     try {
@@ -30,6 +39,7 @@ export default function AdminDashboardPage() {
       const res = await api.getAdminMetrics();
       if (res.success && res.data) {
         setMetrics(res.data);
+        setLastUpdated(new Date());
       }
     } catch (err) {
       setError(err.message || 'Failed to load admin metrics');
@@ -55,6 +65,11 @@ export default function AdminDashboardPage() {
             </h1>
             <p className="text-xs text-slate-400 mt-0.5">
               Real-time sales, live catalog inventory, and fulfillment tracking
+              {lastUpdated && (
+                <span className="text-slate-500 ml-2">
+                  • Synced at {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                </span>
+              )}
             </p>
           </div>
 
@@ -108,7 +123,9 @@ export default function AdminDashboardPage() {
                     {formatINR(metrics.orders?.totalRevenue || 0)}
                   </span>
                   <span className="text-[11px] text-slate-400 block mt-1">
-                    Excludes cancelled orders
+                    {metrics.orders?.cancelledOrders > 0
+                      ? `Excludes ${metrics.orders.cancelledOrders} cancelled ${metrics.orders.cancelledOrders === 1 ? 'order' : 'orders'}`
+                      : `From ${metrics.orders?.activeOrders || metrics.orders?.totalOrders || 0} active orders`}
                   </span>
                 </div>
               </div>
@@ -126,7 +143,9 @@ export default function AdminDashboardPage() {
                     {metrics.orders?.totalOrders || 0}
                   </span>
                   <span className="text-[11px] text-slate-400 block mt-1">
-                    Active lifetime checkouts
+                    {metrics.orders?.cancelledOrders > 0
+                      ? `${metrics.orders?.activeOrders || 0} active, ${metrics.orders.cancelledOrders} cancelled`
+                      : `${metrics.orders?.totalOrders || 0} lifetime checkouts`}
                   </span>
                 </div>
               </div>
@@ -144,31 +163,53 @@ export default function AdminDashboardPage() {
                     {metrics.products?.total || 0}
                   </span>
                   <span className="text-[11px] text-slate-400 block mt-1">
-                    {metrics.products?.active || 0} active, {metrics.products?.inactive || 0} inactive
+                    {metrics.products?.active || 0} active in store, {metrics.products?.inactive || 0} inactive
                   </span>
                 </div>
               </div>
 
-              {/* Low Stock Alert */}
-              <div className="bg-slate-800/80 border border-slate-700/60 rounded-3xl p-5 relative overflow-hidden">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-slate-400">Low Stock Alert</span>
-                  <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center">
-                    <AlertTriangle className="w-5 h-5" />
+              {/* Low Stock Alert / Inventory Health */}
+              {metrics.products?.lowStock > 0 ? (
+                <div className="bg-slate-800/80 border border-amber-500/40 rounded-3xl p-5 relative overflow-hidden">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-slate-400">Low Stock Alert</span>
+                    <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center">
+                      <AlertTriangle className="w-5 h-5" />
+                    </div>
+                  </div>
+                  <div className="mt-3">
+                    <span className="text-2xl font-black text-amber-400 tracking-tight">
+                      {metrics.products.lowStock}
+                    </span>
+                    <Link
+                      to="/admin/inventory"
+                      className="text-[11px] text-amber-300 hover:text-amber-200 inline-flex items-center gap-1 mt-1 font-semibold"
+                    >
+                      Restock required <ArrowRight className="w-3 h-3" />
+                    </Link>
                   </div>
                 </div>
-                <div className="mt-3">
-                  <span className="text-2xl font-black text-amber-400 tracking-tight">
-                    {metrics.products?.lowStock || 0}
-                  </span>
-                  <Link
-                    to="/admin/inventory"
-                    className="text-[11px] text-amber-300 hover:text-amber-200 inline-flex items-center gap-1 mt-1 font-semibold"
-                  >
-                    Restock now <ArrowRight className="w-3 h-3" />
-                  </Link>
+              ) : (
+                <div className="bg-slate-800/80 border border-slate-700/60 rounded-3xl p-5 relative overflow-hidden">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-slate-400">Inventory Health</span>
+                    <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                      <CheckCircle className="w-5 h-5" />
+                    </div>
+                  </div>
+                  <div className="mt-3">
+                    <span className="text-2xl font-black text-emerald-400 tracking-tight">
+                      Healthy
+                    </span>
+                    <Link
+                      to="/admin/inventory"
+                      className="text-[11px] text-emerald-400/80 hover:text-emerald-300 inline-flex items-center gap-1 mt-1 font-semibold"
+                    >
+                      All products in stock <ArrowRight className="w-3 h-3" />
+                    </Link>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Status Breakdown Section */}
@@ -188,13 +229,17 @@ export default function AdminDashboardPage() {
                     <Link
                       key={item.status}
                       to={`/admin/orders?status=${item.status}`}
-                      className="p-3.5 bg-slate-900/60 hover:bg-slate-900 border border-slate-800 rounded-2xl transition group"
+                      className={`p-3.5 bg-slate-900/60 hover:bg-slate-900 border rounded-2xl transition group ${
+                        count > 0 ? 'border-slate-700/80' : 'border-slate-800/60'
+                      }`}
                     >
                       <div className="flex items-center justify-between text-slate-400 group-hover:text-white mb-1">
                         <span className="text-xs font-semibold">{item.label}</span>
                         <Icon className={`w-3.5 h-3.5 ${item.color}`} />
                       </div>
-                      <span className="text-lg font-black text-white">{count}</span>
+                      <span className={`text-lg font-black ${count > 0 ? 'text-white' : 'text-slate-500'}`}>
+                        {count}
+                      </span>
                     </Link>
                   );
                 })}
@@ -227,40 +272,48 @@ export default function AdminDashboardPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800">
-                      {metrics.recentOrders.map((ord) => (
-                        <tr key={ord.id} className="hover:bg-slate-800/40 transition">
-                          <td className="py-3 font-mono font-bold text-slate-200">
-                            {ord.orderNumber}
-                          </td>
-                          <td className="py-3 text-slate-300">
-                            <span className="block font-medium">{ord.customerName}</span>
-                            <span className="block text-[11px] text-slate-500">{ord.email}</span>
-                          </td>
-                          <td className="py-3 text-slate-400 text-[11px]">
-                            {new Date(ord.createdAt).toLocaleDateString('en-IN', {
-                              day: 'numeric',
-                              month: 'short',
-                              year: 'numeric'
-                            })}
-                          </td>
-                          <td className="py-3 font-bold text-white">
-                            {formatINR(ord.totalAmount)}
-                          </td>
-                          <td className="py-3">
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-300 border border-slate-700">
-                              {ord.orderStatus}
-                            </span>
-                          </td>
-                          <td className="py-3 text-right">
-                            <Link
-                              to={`/order-confirmation/${ord.orderNumber}`}
-                              className="text-brand-400 hover:text-brand-300 font-semibold"
-                            >
-                              Inspect
-                            </Link>
-                          </td>
-                        </tr>
-                      ))}
+                      {metrics.recentOrders.map((ord) => {
+                        const statusBadgeClass =
+                          STATUS_STYLES[ord.orderStatus] ||
+                          'bg-slate-800 text-slate-300 border-slate-700';
+                        return (
+                          <tr key={ord.id} className="hover:bg-slate-800/40 transition">
+                            <td className="py-3 font-mono font-bold text-slate-200">
+                              {ord.orderNumber}
+                            </td>
+                            <td className="py-3 text-slate-300">
+                              <span className="block font-medium">{ord.customerName}</span>
+                              <span className="block text-[11px] text-slate-500">{ord.email}</span>
+                            </td>
+                            <td className="py-3 text-slate-400 text-[11px]">
+                              {new Date(ord.createdAt).toLocaleDateString('en-IN', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric'
+                              })}
+                            </td>
+                            <td className="py-3 font-bold text-white">
+                              {formatINR(ord.totalAmount)}
+                            </td>
+                            <td className="py-3">
+                              <span
+                                className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${statusBadgeClass}`}
+                              >
+                                {ord.orderStatus}
+                              </span>
+                            </td>
+                            <td className="py-3 text-right">
+                              <Link
+                                to={`/admin/orders?search=${encodeURIComponent(ord.orderNumber)}`}
+                                className="text-brand-400 hover:text-brand-300 font-semibold"
+                                title="Manage in Order Center"
+                              >
+                                Manage
+                              </Link>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

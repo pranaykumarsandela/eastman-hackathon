@@ -81,32 +81,48 @@ test('Integration: Atomic Order Placement, Stock Reduction & Rollback', async ()
     idempotencyKey: `TEST-IDEMP-${Date.now()}`
   };
 
-  const result = await placeOrder(testOrder);
-  assert.strictEqual(result.success, true);
-  assert.ok(result.order.orderNumber.startsWith('SC-'));
-
-  // Verify stock was reduced in PostgreSQL
-  const updatedP = await query('SELECT stock_quantity FROM products WHERE id = $1', [prod.id]);
-  assert.strictEqual(updatedP.rows[0].stock_quantity, initialStock - 2);
-
-  // Verify order lookup works
-  const lookup = await getOrderByLookup(result.order.orderNumber, 'tester@smartcart.internal');
-  assert.ok(lookup !== null);
-  assert.strictEqual(lookup.customerName, 'Integration Tester');
-  assert.strictEqual(lookup.items.length, 1);
-  assert.strictEqual(lookup.items[0].quantity, 2);
-
-  // Test rollback on invalid / overselling order
-  let failed = false;
+  let placedOrderNumber = null;
   try {
-    await placeOrder({
-      ...testOrder,
-      idempotencyKey: `FAIL-${Date.now()}`,
-      items: [{ productId: prod.id, quantity: 999999 }] // more than available stock!
-    });
-  } catch (err) {
-    failed = true;
-    assert.strictEqual(err.statusCode, 409); // conflict / insufficient stock
+    const result = await placeOrder(testOrder);
+    assert.strictEqual(result.success, true);
+    assert.ok(result.order.orderNumber.startsWith('SC-'));
+    placedOrderNumber = result.order.orderNumber;
+
+    // Verify stock was reduced in PostgreSQL
+    const updatedP = await query('SELECT stock_quantity FROM products WHERE id = $1', [prod.id]);
+    assert.strictEqual(updatedP.rows[0].stock_quantity, initialStock - 2);
+
+    // Verify order lookup works
+    const lookup = await getOrderByLookup(result.order.orderNumber, 'tester@smartcart.internal');
+    assert.ok(lookup !== null);
+    assert.strictEqual(lookup.customerName, 'Integration Tester');
+    assert.strictEqual(lookup.items.length, 1);
+    assert.strictEqual(lookup.items[0].quantity, 2);
+
+    // Test rollback on invalid / overselling order
+    let failed = false;
+    try {
+      await placeOrder({
+        ...testOrder,
+        idempotencyKey: `FAIL-${Date.now()}`,
+        items: [{ productId: prod.id, quantity: 999999 }] // more than available stock!
+      });
+    } catch (err) {
+      failed = true;
+      assert.strictEqual(err.statusCode, 409); // conflict / insufficient stock
+    }
+    assert.strictEqual(failed, true, 'Expected order with excess quantity to fail with 409');
+  } finally {
+    // Clean up test order from DB so it never pollutes the admin dashboard
+    if (placedOrderNumber) {
+      const ordRes = await query('SELECT id FROM orders WHERE order_number = $1', [placedOrderNumber]);
+      if (ordRes.rows.length > 0) {
+        const orderId = ordRes.rows[0].id;
+        await query('DELETE FROM order_items WHERE order_id = $1', [orderId]);
+        await query('DELETE FROM orders WHERE id = $1', [orderId]);
+      }
+      // Restore product stock
+      await query('UPDATE products SET stock_quantity = $1 WHERE id = $2', [initialStock, prod.id]);
+    }
   }
-  assert.strictEqual(failed, true, 'Expected order with excess quantity to fail with 409');
 });

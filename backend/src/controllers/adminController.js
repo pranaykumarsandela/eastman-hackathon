@@ -11,16 +11,18 @@ const getAdminMetrics = async (req, res, next) => {
       SELECT 
         COUNT(*) as total_products,
         COUNT(*) FILTER (WHERE is_active = TRUE) as active_products,
-        COUNT(*) FILTER (WHERE is_active = TRUE AND stock_quantity <= 5) as low_stock_products,
+        COUNT(*) FILTER (WHERE is_active = TRUE AND stock_quantity < 10 AND stock_quantity > 0) as low_stock_products,
         COUNT(*) FILTER (WHERE is_active = TRUE AND stock_quantity = 0) as out_of_stock_products
       FROM products
     `);
 
-    // 2. Orders & Revenue metrics
+    // 2. Orders & Revenue metrics (excluding cancelled orders from revenue)
     const orderMetricsRes = await query(`
       SELECT 
         COUNT(*) as total_orders,
-        COALESCE(SUM(total_amount), 0) as total_revenue,
+        COUNT(*) FILTER (WHERE order_status != 'CANCELLED') as active_orders,
+        COALESCE(SUM(total_amount) FILTER (WHERE order_status != 'CANCELLED'), 0) as total_revenue,
+        COALESCE(AVG(total_amount) FILTER (WHERE order_status != 'CANCELLED'), 0) as avg_order_value,
         COUNT(*) FILTER (WHERE order_status = 'CONFIRMED') as confirmed_orders,
         COUNT(*) FILTER (WHERE order_status = 'PROCESSING') as processing_orders,
         COUNT(*) FILTER (WHERE order_status = 'SHIPPED') as shipped_orders,
@@ -34,12 +36,12 @@ const getAdminMetrics = async (req, res, next) => {
       SELECT COUNT(*) as total_customers FROM users WHERE role = 'customer'
     `);
 
-    // 4. Five most recent orders
+    // 4. Ten most recent orders
     const recentOrdersRes = await query(`
       SELECT id, order_number, customer_name, email, total_amount, order_status, payment_method, created_at
       FROM orders
       ORDER BY created_at DESC
-      LIMIT 5
+      LIMIT 10
     `);
 
     const pCounts = prodCountsRes.rows[0];
@@ -57,7 +59,10 @@ const getAdminMetrics = async (req, res, next) => {
         orders: {
           total: parseInt(oMetrics.total_orders, 10),
           totalOrders: parseInt(oMetrics.total_orders, 10),
+          activeOrders: parseInt(oMetrics.active_orders, 10),
+          cancelledOrders: parseInt(oMetrics.cancelled_orders, 10),
           totalRevenue: parseFloat(oMetrics.total_revenue),
+          avgOrderValue: parseFloat(oMetrics.avg_order_value),
           statusCounts: {
             CONFIRMED: parseInt(oMetrics.confirmed_orders, 10),
             PROCESSING: parseInt(oMetrics.processing_orders, 10),
@@ -80,6 +85,7 @@ const getAdminMetrics = async (req, res, next) => {
           id: o.id,
           orderNumber: o.order_number,
           customerName: o.customer_name,
+          email: o.email,
           totalAmount: parseFloat(o.total_amount),
           orderStatus: o.order_status,
           paymentMethod: o.payment_method,
