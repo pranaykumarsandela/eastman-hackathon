@@ -14,7 +14,7 @@ export default function CheckoutPage() {
   const navigate = useNavigate();
   const { cartItems, appliedCoupon, clearCart } = useCart();
   const { addToast } = useNotification();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
 
   // Form Fields
   const [formData, setFormData] = useState({
@@ -27,6 +27,18 @@ export default function CheckoutPage() {
     postalCode: '',
     paymentMethod: 'COD' // 'COD' | 'SIMULATED_ONLINE'
   });
+
+  // Sync user details when user loads
+  useEffect(() => {
+    if (user) {
+      setFormData((prev) => ({
+        ...prev,
+        customerName: prev.customerName || user.fullName || '',
+        email: prev.email || user.email || '',
+        phone: prev.phone || user.phone || ''
+      }));
+    }
+  }, [user]);
 
   const [formErrors, setFormErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);

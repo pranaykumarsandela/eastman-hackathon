@@ -44,7 +44,7 @@ export default function AdminProductFormPage() {
 
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(isEditMode);
-  const [categories, setCategories] = useState(['Electronics', 'Audio', 'Wearables', 'Accessories', 'Gaming']);
+  const [categories, setCategories] = useState([]);
   const [error, setError] = useState('');
   const [imageLoadError, setImageLoadError] = useState(false);
 
@@ -88,13 +88,14 @@ export default function AdminProductFormPage() {
     loadProduct();
   }, [id, isEditMode]);
 
-  // Load categories
+  // Load categories dynamically from database
   useEffect(() => {
     const fetchCats = async () => {
       try {
         const res = await api.getCategories();
         if (res.success && res.data && res.data.length > 0) {
-          setCategories(res.data);
+          const names = res.data.map((c) => (typeof c === 'string' ? c : c?.name)).filter(Boolean);
+          setCategories(names);
         }
       } catch (err) {
         console.warn('Failed to fetch categories:', err.message);
