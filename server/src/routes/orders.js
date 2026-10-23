@@ -4,7 +4,10 @@ import { randomUUID } from 'node:crypto';
 import { prisma } from '../db.js';
 import { priceOrder, toPaise, rupees } from '../pricing.js';
 import { requireAuth } from '../auth.js';
+
 const router = Router();
+export const checkoutRouter = Router();
+
 const wrap = fn => (req,res,next) => Promise.resolve(fn(req,res,next)).catch(next);
 const itemsSchema=z.array(z.object({productId:z.string().uuid(),quantity:z.number().int().min(1).max(100)})).min(1);
 const cartSchema=z.object({items:itemsSchema,couponCode:z.string().trim().max(40).optional().default('')});
@@ -19,7 +22,13 @@ async function calculate(tx,input){
  if(input.couponCode&&!coupon)throw Object.assign(new Error('Invalid coupon'),{status:400});
  return {lines,coupon,summary:priceOrder(lines,coupon)};
 }
-router.post('/preview',wrap(async(req,res)=>{const input=cartSchema.parse(req.body);const {summary}=await calculate(prisma,input);res.json(summary);}));
+
+checkoutRouter.post('/preview', wrap(async (req, res) => {
+  const input = cartSchema.parse(req.body);
+  const { summary } = await calculate(prisma, input);
+  res.json(summary);
+}));
+
 router.post('/',requireAuth,wrap(async(req,res)=>{
  const input=orderSchema.parse(req.body);
  const existing=await prisma.order.findUnique({where:{id:input.idempotencyKey},include:{items:true}});
@@ -42,4 +51,55 @@ router.get('/:orderNumber',requireAuth,wrap(async(req,res)=>{
  if(!order)return res.status(404).json({error:'Order not found'});
  res.json(order);
 }));
+
+checkoutRouter.post('/best-coupon', wrap(async (req, res) => {
+  const input = cartSchema.parse(req.body);
+
+  // Calculate the original cart total without a coupon.
+  const { summary: original } = await calculate(prisma, {
+    ...input,
+    couponCode: ''
+  });
+
+  // Fetch available coupon codes from PostgreSQL.
+  const coupons = await prisma.coupon.findMany({
+    select: { code: true }
+  });
+
+  let bestCoupon = null;
+  let bestSummary = original;
+  let maxSavings = 0;
+
+  for (const coupon of coupons) {
+    try {
+      // Reuse the existing pricing and coupon validation.
+      const { summary } = await calculate(prisma, {
+        ...input,
+        couponCode: coupon.code
+      });
+
+      const savings = Number(summary.discount);
+
+      if (Number.isFinite(savings) && savings > maxSavings) {
+        maxSavings = savings;
+        bestCoupon = coupon.code;
+        bestSummary = summary;
+      }
+    } catch (error) {
+      // Skip coupons that are invalid or ineligible.
+      // Unexpected errors should still reach Express.
+      if (error.status === 400) continue;
+      throw error;
+    }
+  }
+
+  res.json({
+    recommendedCoupon: bestCoupon,
+    savings: maxSavings,
+    originalTotal: original.total,
+    finalTotal: bestSummary.total,
+    summary: bestSummary
+  });
+}));
+
 export default router;
