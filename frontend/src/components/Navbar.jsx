@@ -182,39 +182,50 @@ export default function Navbar({ onSearchChange, searchTerm = '' }) {
               </Link>
             )}
 
-            {/* Redesigned Spacious Cart Button */}
-            <Link
-              to="/cart"
-              className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl shadow-sm hover:shadow-md transition group shrink-0 border border-slate-800"
-              aria-label="View Shopping Cart"
-            >
-              {/* Icon with Counter Badge */}
-              <div className="relative flex items-center justify-center">
-                <ShoppingBag className="w-5 h-5 text-brand-400 group-hover:scale-105 transition-transform" />
-                {totalItemCount > 0 && (
-                  <span className="absolute -top-2 -right-2.5 bg-amber-400 text-slate-950 text-[10px] font-black min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center shadow-xs ring-2 ring-slate-900">
-                    {totalItemCount}
-                  </span>
-                )}
-              </div>
+            {/* Admin: Show Admin Portal button. Customer: Show Cart button */}
+            {isAdmin ? (
+              <Link
+                to="/admin"
+                className="flex items-center gap-2 px-3.5 sm:px-4 py-2 bg-gradient-to-r from-brand-600 via-brand-700 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white rounded-2xl shadow-md hover:shadow-lg transition group shrink-0 border border-brand-400/30"
+                aria-label="Open Admin Management Portal"
+              >
+                <LayoutDashboard className="w-4 h-4 text-brand-200 group-hover:scale-110 transition-transform" />
+                <span className="text-xs font-bold tracking-tight">Admin Portal</span>
+              </Link>
+            ) : (
+              <Link
+                to="/cart"
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl shadow-sm hover:shadow-md transition group shrink-0 border border-slate-800"
+                aria-label="View Shopping Cart"
+              >
+                {/* Icon with Counter Badge */}
+                <div className="relative flex items-center justify-center">
+                  <ShoppingBag className="w-5 h-5 text-brand-400 group-hover:scale-105 transition-transform" />
+                  {totalItemCount > 0 && (
+                    <span className="absolute -top-2 -right-2.5 bg-amber-400 text-slate-950 text-[10px] font-black min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center shadow-xs ring-2 ring-slate-900">
+                      {totalItemCount}
+                    </span>
+                  )}
+                </div>
 
-              {/* Text: Cart + Total */}
-              <div className="flex items-center gap-1.5 leading-tight">
-                <span className="text-xs font-bold text-white">
-                  Cart
-                </span>
-                {totalItemCount > 0 && (
-                  <span className="text-xs font-bold text-amber-400">
-                    ({totalItemCount})
+                {/* Text: Cart + Total */}
+                <div className="flex items-center gap-1.5 leading-tight">
+                  <span className="text-xs font-bold text-white">
+                    Cart
                   </span>
-                )}
-                {subtotal > 0 && (
-                  <span className="hidden sm:inline-block text-[11px] font-extrabold text-slate-200 bg-slate-800 px-2 py-0.5 rounded-lg border border-slate-700/80 ml-0.5">
-                    {formatINR(subtotal)}
-                  </span>
-                )}
-              </div>
-            </Link>
+                  {totalItemCount > 0 && (
+                    <span className="text-xs font-bold text-amber-400">
+                      ({totalItemCount})
+                    </span>
+                  )}
+                  {subtotal > 0 && (
+                    <span className="hidden sm:inline-block text-[11px] font-extrabold text-slate-200 bg-slate-800 px-2 py-0.5 rounded-lg border border-slate-700/80 ml-0.5">
+                      {formatINR(subtotal)}
+                    </span>
+                  )}
+                </div>
+              </Link>
+            )}
 
           </div>
 

@@ -44,7 +44,7 @@ export default function ProductCard({ product, onQuickView }) {
   return (
     <div
       onClick={() => onQuickView && onQuickView(product)}
-      className="group relative bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-xs hover:shadow-xl hover:border-slate-300 transition-all duration-300 flex flex-col cursor-pointer"
+      className="group relative bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-xs hover:shadow-xl hover:border-slate-300 transition-all duration-300 flex flex-col h-full cursor-pointer"
     >
       {/* Category & Stock Pills */}
       <div className="absolute top-3 left-3 right-3 z-10 flex items-center justify-between pointer-events-none">
@@ -66,8 +66,8 @@ export default function ProductCard({ product, onQuickView }) {
         )}
       </div>
 
-      {/* Image container */}
-      <div className="relative aspect-4/3 overflow-hidden bg-slate-100 flex items-center justify-center">
+      {/* Image container with fixed aspect ratio */}
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100 flex items-center justify-center shrink-0">
         <img
           src={imageError ? fallbackImage : product.imageUrl}
           alt={product.name}
@@ -84,11 +84,11 @@ export default function ProductCard({ product, onQuickView }) {
         </div>
       </div>
 
-      {/* Product Content */}
+      {/* Product Content with flex-1 and structured height slots */}
       <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between">
         <div>
           {/* Rating */}
-          <div className="flex items-center gap-1.5 mb-2">
+          <div className="flex items-center gap-1.5 mb-1.5 h-5 shrink-0">
             <div className="flex items-center text-amber-500">
               <Star className="w-3.5 h-3.5 fill-current" />
             </div>
@@ -96,19 +96,19 @@ export default function ProductCard({ product, onQuickView }) {
             <span className="text-[11px] text-slate-400">• High Demand</span>
           </div>
 
-          {/* Name */}
-          <h3 className="font-semibold text-slate-900 text-sm sm:text-base leading-snug line-clamp-2 group-hover:text-brand-600 transition-colors">
+          {/* Name - strictly 2 lines max with fixed height for grid uniformity */}
+          <h3 className="font-bold text-slate-900 text-sm sm:text-base leading-snug line-clamp-2 h-11 sm:h-12 group-hover:text-brand-600 transition-colors">
             {product.name}
           </h3>
 
-          {/* Description */}
-          <p className="mt-1.5 text-xs text-slate-500 line-clamp-2 leading-relaxed">
+          {/* Description - strictly 2 lines max with fixed height */}
+          <p className="mt-1 text-xs text-slate-500 line-clamp-2 leading-relaxed h-8 sm:h-9">
             {product.description}
           </p>
         </div>
 
-        {/* Price & Action Button */}
-        <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
+        {/* Price & Action Button - pinned to the bottom */}
+        <div className="mt-auto pt-3 border-t border-slate-100 flex items-center justify-between gap-3 shrink-0">
           <div>
             <div className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Price</div>
             <div className="text-base sm:text-lg font-extrabold text-slate-900">

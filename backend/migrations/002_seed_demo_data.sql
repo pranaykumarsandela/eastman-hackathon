@@ -69,7 +69,7 @@ VALUES
         'Classic modern slim fit with room to move. Made with Water<Less technology and premium stretch denim for durable flexibility.',
         3199.00,
         'Fashion',
-        'https://images.unsplash.com/photo-1542272604-780c96856592?w=600&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1542272604-787c3835535d?w=600&auto=format&fit=crop&q=80',
         35,
         4.4,
         TRUE
@@ -119,7 +119,7 @@ VALUES
         'Adaptive lumbar support, 3D adjustable armrests, breathable dual-layer mesh, and 135-degree recline with tilt tension lock.',
         12499.00,
         'Home',
-        'https://images.unsplash.com/photo-1580481077195-c22ae242634e?w=600&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1592078615290-033ee584e267?w=600&auto=format&fit=crop&q=80',
         20,
         4.5,
         TRUE
@@ -149,7 +149,7 @@ VALUES
         'Ultra-powerful two-way fast charging with smart digital display, GaNPrime technology, and charges 3 devices simultaneously.',
         11999.00,
         'Electronics',
-        'https://images.unsplash.com/photo-1609592426861-46487e4c9c1c?w=600&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=600&auto=format&fit=crop&q=80',
         25,
         4.9,
         TRUE
